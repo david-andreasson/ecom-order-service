@@ -2,7 +2,7 @@ package se.moln.orderservice.dto;
 
 import java.util.UUID;
 
-public record OrderItemRequest(
+public record PurchaseRequest(
         UUID productId,
         int quantity
 ) {}
