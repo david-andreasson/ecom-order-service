@@ -10,8 +10,9 @@ public class CorsConfig implements WebFluxConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**") // Tillåt alla endpoints
-                .allowedOrigins("http://localhost:3000", "https://productservice.drillbi.se/", "https://userservice.drillbi.se", "http://localhost:8082")
+                .allowedOrigins("http://localhost:3000", "https://productservice.drillbi.se", "https://userservice.drillbi.se", "http://localhost:8082")
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                .allowedHeaders("*");
+                .allowedHeaders("*")
+                .allowCredentials(true);
     }
 }
