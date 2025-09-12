@@ -1,6 +1,5 @@
 package se.moln.orderservice.config;
 
-
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
@@ -21,13 +20,14 @@ public class OpenApiConfig {
                         .title("Order Service API")
                         .version("v1")
                         .description("Order endpoints"))
-                .addSecurityItem(new SecurityRequirement().addList("bearerAuth"))
                 .components(new Components()
                         .addSecuritySchemes("bearerAuth",
                                 new SecurityScheme()
                                         .type(SecurityScheme.Type.HTTP)
                                         .scheme("bearer")
-                                        .bearerFormat("JWT")))
+                                        .bearerFormat("JWT")
+                                        .description("JWT Bearer authentication")))
+                .addSecurityItem(new SecurityRequirement().addList("bearerAuth"))
                 .servers(List.of(
                         new Server().url("http://localhost:8082").description("Local"),
                         new Server().url("https://orderservice.drillbi.se").description("Production")
