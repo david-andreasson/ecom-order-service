@@ -30,7 +30,7 @@ import static org.mockito.Mockito.when;
 class OrderServiceTest {
 
     @Mock
-    WebClient.Builder webClientBuilder; // not used by getOrderHistory
+    WebClient.Builder webClientBuilder;
 
     @Mock
     OrderRepository orderRepository;
