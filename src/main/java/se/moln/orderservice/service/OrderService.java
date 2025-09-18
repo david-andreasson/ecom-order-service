@@ -2,6 +2,7 @@ package se.moln.orderservice.service;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -144,7 +145,8 @@ public class OrderService {
             return Mono.error(new IllegalArgumentException("Missing bearer token"));
         }
         UUID userId = jwtService.extractUserId(jwtToken);
-        return Mono.fromCallable(() -> orderRepository.findByUserId(userId, PageRequest.of(page, size)))
+        return Mono.fromCallable(() ->  orderRepository.findByUserId(userId, PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "orderDate")))
+                )
                 .subscribeOn(Schedulers.boundedElastic())
                 .map(pageObj -> pageObj.getContent().stream().map(o -> new OrderHistoryDto(
                         o.getId(),

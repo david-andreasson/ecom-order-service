@@ -89,7 +89,7 @@ public class OrderController {
             @Parameter(description = "Bearer-token i formatet 'Bearer <JWT>'")
             @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String authHeader,
             @Parameter(description = "Sida (0-baserad)") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "Radsstorlek") @RequestParam(defaultValue = "10") int size) {
+            @Parameter(description = "Radsstorlek") @RequestParam(defaultValue = "200") int size) {
         String token = authHeader != null && authHeader.startsWith("Bearer ") ? authHeader.substring(7) : null;
         return orderService.getOrderHistory(token, page, size)
                 .map(ResponseEntity::ok);
