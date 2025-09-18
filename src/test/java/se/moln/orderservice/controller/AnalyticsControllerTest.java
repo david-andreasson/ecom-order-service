@@ -95,7 +95,7 @@ class AnalyticsControllerTest {
                 item(p1, "USB-C Hub 8-in-1", 1, "25.00")
         );
 
-        when(orders.findByStatusAndOrderDateBetween(eq(OrderStatus.COMPLETED), any(), any()))
+        when(orders.findByStatusAndOrderDateBetween(eq(OrderStatus.CREATED), any(), any()))
                 .thenReturn(List.of(o1, o2));
 
         AnalyticsController.MonthlyKpisResponse resp = controller.monthlyKpis(null, null, "Bearer valid");
@@ -124,7 +124,7 @@ class AnalyticsControllerTest {
 
         Order o = order(d, null, it); // totalAmount null -> treated as zero in revenue sum
 
-        when(orders.findByStatusAndOrderDateBetween(eq(OrderStatus.COMPLETED), any(), any()))
+        when(orders.findByStatusAndOrderDateBetween(eq(OrderStatus.CREATED), any(), any()))
                 .thenReturn(List.of(o));
 
         AnalyticsController.MonthlyKpisResponse resp = controller.monthlyKpis(year, month, "Bearer valid");
