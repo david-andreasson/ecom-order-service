@@ -84,17 +84,17 @@ public class AnalyticsController {
         OffsetDateTime from = ym.atDay(1).atStartOfDay().atOffset(offset);
         OffsetDateTime to = ym.plusMonths(1).atDay(1).atStartOfDay().atOffset(offset);
 
-        // Hämta endast COMPLETED ordrar inom intervallet
-        List<Order> completed = orders.findByStatusAndOrderDateBetween(OrderStatus.COMPLETED, from, to);
+        // Hämta endast CREATED ordrar inom intervallet
+        List<Order> created = orders.findByStatusAndOrderDateBetween(OrderStatus.CREATED, from, to);
 
         // unitsSold = summa av alla item.quantity
-        int unitsSold = completed.stream()
+        int unitsSold = created.stream()
                 .flatMap(o -> o.getOrderItems().stream())
                 .mapToInt(OrderItem::getQuantity)
                 .sum();
 
         // revenue = summa av order.totalAmount
-        BigDecimal revenue = completed.stream()
+        BigDecimal revenue = created.stream()
                 .map(o -> o.getTotalAmount() == null ? BigDecimal.ZERO : o.getTotalAmount())
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
                 .setScale(2, RoundingMode.HALF_UP);
@@ -103,7 +103,7 @@ public class AnalyticsController {
         record Agg(BigDecimal revenue, int units, String name) {
         }
         Map<UUID, Agg> byProduct = new HashMap<>();
-        for (Order o : completed) {
+        for (Order o : created) {
             for (OrderItem it : o.getOrderItems()) {
                 UUID pid = it.getProductId();
                 BigDecimal line = (it.getPriceAtPurchase() == null ? BigDecimal.ZERO : it.getPriceAtPurchase())
