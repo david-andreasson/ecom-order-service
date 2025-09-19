@@ -68,7 +68,7 @@ public class OrderController {
             @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String authHeader,
             @RequestBody PurchaseRequest purchaseRequest) {
         String token = authHeader != null && authHeader.startsWith("Bearer ") ? authHeader.substring(7) : null;
-        return orderService.purchaseProduct(purchaseRequest.productId(), purchaseRequest.quantity(), token)
+        return orderService.purchaseProduct(purchaseRequest, token)
                 .map(ResponseEntity::ok);
     }
 
