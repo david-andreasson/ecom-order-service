@@ -9,13 +9,10 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.server.ResponseStatusException;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
-import se.moln.orderservice.dto.OrderHistoryDto;
-import se.moln.orderservice.dto.OrderItemDto;
-import se.moln.orderservice.dto.ProductResponse;
-import se.moln.orderservice.dto.PurchaseResponse;
-import se.moln.orderservice.dto.InventoryPurchaseRequest;
+import se.moln.orderservice.dto.*;
 import se.moln.orderservice.model.Order;
 import se.moln.orderservice.model.OrderItem;
 import se.moln.orderservice.model.OrderStatus;
@@ -47,98 +44,86 @@ public class OrderService {
         this.jwtService = jwtService;
     }
 
-    public Mono<PurchaseResponse> purchaseProduct(UUID productId, int qty, String jwtToken) {
+    public Mono<PurchaseResponse> purchaseProduct(PurchaseRequest request, String jwtToken) {
         if (jwtToken == null || jwtToken.isBlank()) {
             return Mono.error(new IllegalArgumentException("Missing bearer token"));
         }
         UUID userId = jwtService.extractUserId(jwtToken);
         String correlationId = UUID.randomUUID().toString();
-
         WebClient webClient = webClientBuilder.build();
 
-        return webClient.get()
-                .uri(productServiceUrl + "/api/products/{id}", productId)
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtToken)
-                .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
-                .header("X-Correlation-Id", correlationId)
-                .retrieve()
-                .onStatus(sc -> sc.is4xxClientError(), rsp ->
-                        rsp.bodyToMono(String.class)
-                                .defaultIfEmpty("")
-                                .flatMap(body -> Mono.error(new ResponseStatusException(
-                                        HttpStatus.NOT_FOUND,
-                                        body.isBlank() ? ("Product not found | cid=" + correlationId) : (body + " | cid=" + correlationId)
-                                )))
-                )
-                .onStatus(sc -> sc.is5xxServerError(), rsp ->
-                        rsp.bodyToMono(String.class)
-                                .defaultIfEmpty("")
-                                .flatMap(body -> Mono.error(new ResponseStatusException(
-                                        HttpStatus.BAD_GATEWAY,
-                                        body.isBlank() ? ("Product service error | cid=" + correlationId) : (body + " | cid=" + correlationId)
-                                )))
-                )
-                .bodyToMono(ProductResponse.class)
-                .flatMap(prod -> webClient.post()
-                        .uri(productServiceUrl + "/api/inventory/{id}/purchase", productId)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtToken)
-                        .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
-                        .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                        .header("X-Correlation-Id", correlationId)
-                        .bodyValue(new InventoryPurchaseRequest(qty))
-                        .retrieve()
-                        .onStatus(sc -> sc.isError(), rsp ->
-                                rsp.bodyToMono(String.class)
-                                        .defaultIfEmpty("")
-                                        .flatMap(body -> {
-                                            HttpStatus status = HttpStatus.valueOf(rsp.statusCode().value());
-                                            HttpStatus mapped = status.is5xxServerError() ? HttpStatus.BAD_GATEWAY : status;
-                                            String baseMsg = (status.value() == 409)
-                                                    ? "Insufficient stock"
-                                                    : ("Inventory purchase failed: " + status);
-                                            String msg = (body.isBlank() ? baseMsg : (baseMsg + " | " + body)) + " | cid=" + correlationId;
-                                            return Mono.error(new ResponseStatusException(mapped, msg));
-                                        })
-                        )
-                        .toBodilessEntity()
-                        .thenReturn(prod))
-                .flatMap(prod -> {
-                    Order order = new Order();
-                    order.setUserId(userId);
-                    order.setStatus(OrderStatus.CREATED);
-                    order.setOrderDate(OffsetDateTime.now());
-                    order.setOrderNumber(generateOrderNumber());
+        Order order = new Order();
+        order.setUserId(userId);
+        order.setStatus(OrderStatus.CREATED);
+        order.setOrderDate(OffsetDateTime.now());
+        order.setOrderNumber(generateOrderNumber());
 
-                    OrderItem item = new OrderItem();
-                    item.setProductId(productId);
-                    item.setQuantity(qty);
-                    item.setPriceAtPurchase(prod.price());
-                    item.setProductName(prod.name());
-                    item.setOrder(order);
-                    order.setOrderItems(List.of(item));
+        return Flux.fromIterable(request.items())
+                .flatMap(itemReq ->
+                        // hämta produktinfo
+                        webClient.get()
+                                .uri(productServiceUrl + "/api/products/{id}", itemReq.productId())
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtToken)
+                                .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
+                                .header("X-Correlation-Id", correlationId)
+                                .retrieve()
+                                .bodyToMono(ProductResponse.class)
+                                .flatMap(prod ->
+                                        // reservera lagret
+                                        webClient.post()
+                                                .uri(productServiceUrl + "/api/inventory/{id}/purchase", itemReq.productId())
+                                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtToken)
+                                                .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
+                                                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                                                .header("X-Correlation-Id", correlationId)
+                                                .bodyValue(new InventoryPurchaseRequest(itemReq.quantity()))
+                                                .retrieve()
+                                                .toBodilessEntity()
+                                                .thenReturn(prod)
+                                )
+                                .map(prod -> {
+                                    OrderItem item = new OrderItem();
+                                    item.setProductId(itemReq.productId());
+                                    item.setQuantity(itemReq.quantity());
+                                    item.setPriceAtPurchase(prod.price());
+                                    item.setProductName(prod.name());
+                                    item.setOrder(order);
+                                    return item;
+                                })
+                )
+                .collectList()
+                .flatMap(items -> {
+                    order.setOrderItems(items);
 
-                    BigDecimal total = prod.price().multiply(BigDecimal.valueOf(qty));
+                    BigDecimal total = items.stream()
+                            .map(i -> i.getPriceAtPurchase().multiply(BigDecimal.valueOf(i.getQuantity())))
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
                     order.setTotalAmount(total);
 
                     return Mono.fromCallable(() -> orderRepository.save(order))
                             .subscribeOn(Schedulers.boundedElastic())
                             .map(saved -> new PurchaseResponse(saved.getId(), saved.getOrderNumber(), saved.getTotalAmount()))
-                            .onErrorResume(err ->
-                                    // Compensation: refund inventory if order save fails
-                                    webClient.post()
-                                            .uri(productServiceUrl + "/api/inventory/{id}/return", productId)
-                                            .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtToken)
-                                            .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
-                                            .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                                            .header("X-Correlation-Id", correlationId)
-                                            .bodyValue(new InventoryPurchaseRequest(qty))
-                                            .retrieve()
-                                            .toBodilessEntity()
-                                            .onErrorResume(refundErr -> Mono.empty()) // swallow refund errors
-                                            .then(Mono.error(err))
-                            );
+                            .onErrorResume(err -> {
+                                // Rollback: returnera alla reserverade produkter
+                                return Flux.fromIterable(order.getOrderItems())
+                                        .flatMap(item ->
+                                                webClient.post()
+                                                        .uri(productServiceUrl + "/api/inventory/{id}/return", item.getProductId())
+                                                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtToken)
+                                                        .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
+                                                        .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                                                        .header("X-Correlation-Id", correlationId)
+                                                        .bodyValue(new InventoryPurchaseRequest(item.getQuantity()))
+                                                        .retrieve()
+                                                        .toBodilessEntity()
+                                                        .onErrorResume(refundErr -> Mono.empty())
+                                        )
+                                        .then(Mono.error(err));
+                            });
                 });
     }
+
 
     public Mono<List<OrderHistoryDto>> getOrderHistory(String jwtToken, int page, int size) {
         if (jwtToken == null || jwtToken.isBlank()) {
