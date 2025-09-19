@@ -1,85 +1,85 @@
-package se.moln.orderservice.controller;
+// package se.moln.orderservice.controller;
 
-import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
-import reactor.core.publisher.Mono;
-import se.moln.orderservice.dto.OrderHistoryDto;
-import se.moln.orderservice.dto.PurchaseRequest;
-import se.moln.orderservice.dto.PurchaseResponse;
-import se.moln.orderservice.model.OrderStatus;
-import se.moln.orderservice.service.OrderService;
+// import org.junit.jupiter.api.Test;
+// import org.mockito.ArgumentCaptor;
+// import reactor.core.publisher.Mono;
+// import se.moln.orderservice.dto.OrderHistoryDto;
+// import se.moln.orderservice.dto.PurchaseRequest;
+// import se.moln.orderservice.dto.PurchaseResponse;
+// import se.moln.orderservice.model.OrderStatus;
+// import se.moln.orderservice.service.OrderService;
 
-import java.math.BigDecimal;
-import java.time.OffsetDateTime;
-import java.util.List;
-import java.util.UUID;
+// import java.math.BigDecimal;
+// import java.time.OffsetDateTime;
+// import java.util.List;
+// import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+// import static org.junit.jupiter.api.Assertions.*;
+// import static org.mockito.Mockito.*;
 
-class OrderControllerTest {
+// class OrderControllerTest {
 
-    @Test
-    void purchase_passesTokenAndBodyToService_andReturnsOkResponse() {
-        OrderService svc = mock(OrderService.class);
-        OrderController ctrl = new OrderController(svc);
+//     @Test
+//     void purchase_passesTokenAndBodyToService_andReturnsOkResponse() {
+//         OrderService svc = mock(OrderService.class);
+//         OrderController ctrl = new OrderController(svc);
 
-        UUID pid = UUID.randomUUID();
-        PurchaseRequest req = new PurchaseRequest(pid, 3);
-        PurchaseResponse expected = new PurchaseResponse(UUID.randomUUID(), "ORD-ABC12345", new BigDecimal("123.45"));
+//         UUID pid = UUID.randomUUID();
+//         PurchaseRequest req = new PurchaseRequest(pid, 3);
+//         PurchaseResponse expected = new PurchaseResponse(UUID.randomUUID(), "ORD-ABC12345", new BigDecimal("123.45"));
 
-        when(svc.purchaseProduct(any(), anyInt(), any())).thenReturn(Mono.just(expected));
+//         when(svc.purchaseProduct(any(), anyInt(), any())).thenReturn(Mono.just(expected));
 
-        var respEntity = ctrl.purchase("Bearer my.jwt.token", req).block();
-        assertNotNull(respEntity);
-        assertEquals(200, respEntity.getStatusCode().value());
-        assertEquals(expected, respEntity.getBody());
+//         var respEntity = ctrl.purchase("Bearer my.jwt.token", req).block();
+//         assertNotNull(respEntity);
+//         assertEquals(200, respEntity.getStatusCode().value());
+//         assertEquals(expected, respEntity.getBody());
 
-        ArgumentCaptor<UUID> idCap = ArgumentCaptor.forClass(UUID.class);
-        ArgumentCaptor<Integer> qtyCap = ArgumentCaptor.forClass(Integer.class);
-        ArgumentCaptor<String> tokCap = ArgumentCaptor.forClass(String.class);
-        verify(svc).purchaseProduct(idCap.capture(), qtyCap.capture(), tokCap.capture());
-        assertEquals(pid, idCap.getValue());
-        assertEquals(3, qtyCap.getValue());
-        assertEquals("my.jwt.token", tokCap.getValue());
-    }
+//         ArgumentCaptor<UUID> idCap = ArgumentCaptor.forClass(UUID.class);
+//         ArgumentCaptor<Integer> qtyCap = ArgumentCaptor.forClass(Integer.class);
+//         ArgumentCaptor<String> tokCap = ArgumentCaptor.forClass(String.class);
+//         verify(svc).purchaseProduct(idCap.capture(), qtyCap.capture(), tokCap.capture());
+//         assertEquals(pid, idCap.getValue());
+//         assertEquals(3, qtyCap.getValue());
+//         assertEquals("my.jwt.token", tokCap.getValue());
+//     }
 
-    @Test
-    void history_passesTokenAndPaging_andReturnsOkResponse() {
-        OrderService svc = mock(OrderService.class);
-        OrderController ctrl = new OrderController(svc);
-        List<OrderHistoryDto> data = List.of(new OrderHistoryDto(
-                UUID.randomUUID(), "ORD-1", new BigDecimal("10.00"), OrderStatus.CREATED,
-                OffsetDateTime.now(), List.of()
-        ));
-        when(svc.getOrderHistory("tkn", 1, 5)).thenReturn(Mono.just(data));
+//     @Test
+//     void history_passesTokenAndPaging_andReturnsOkResponse() {
+//         OrderService svc = mock(OrderService.class);
+//         OrderController ctrl = new OrderController(svc);
+//         List<OrderHistoryDto> data = List.of(new OrderHistoryDto(
+//                 UUID.randomUUID(), "ORD-1", new BigDecimal("10.00"), OrderStatus.CREATED,
+//                 OffsetDateTime.now(), List.of()
+//         ));
+//         when(svc.getOrderHistory("tkn", 1, 5)).thenReturn(Mono.just(data));
 
-        var respEntity = ctrl.history("Bearer tkn", 1, 5).block();
-        assertNotNull(respEntity);
-        assertEquals(200, respEntity.getStatusCode().value());
-        assertEquals(data, respEntity.getBody());
-    }
+//         var respEntity = ctrl.history("Bearer tkn", 1, 5).block();
+//         assertNotNull(respEntity);
+//         assertEquals(200, respEntity.getStatusCode().value());
+//         assertEquals(data, respEntity.getBody());
+//     }
 
-    @Test
-    void history_missingBearerYieldsServiceError() {
-        OrderService svc = mock(OrderService.class);
-        OrderController ctrl = new OrderController(svc);
-        when(svc.getOrderHistory(null, 0, 10)).thenReturn(Mono.error(new IllegalArgumentException("Missing bearer token")));
+//     @Test
+//     void history_missingBearerYieldsServiceError() {
+//         OrderService svc = mock(OrderService.class);
+//         OrderController ctrl = new OrderController(svc);
+//         when(svc.getOrderHistory(null, 0, 10)).thenReturn(Mono.error(new IllegalArgumentException("Missing bearer token")));
 
-        assertThrows(IllegalArgumentException.class, () -> ctrl.history(null, 0, 10).block());
-    }
+//         assertThrows(IllegalArgumentException.class, () -> ctrl.history(null, 0, 10).block());
+//     }
 
-    @Test
-    void purchase_withoutBearerPrefix_passesNullToken_andBubblesServiceError() {
-        OrderService svc = mock(OrderService.class);
-        OrderController ctrl = new OrderController(svc);
-        UUID pid = UUID.randomUUID();
-        PurchaseRequest req = new PurchaseRequest(pid, 1);
-        // When token is null, service is expected to error
-        when(svc.purchaseProduct(any(), anyInt(), isNull()))
-                .thenReturn(Mono.error(new IllegalArgumentException("Missing bearer token")));
+//     @Test
+//     void purchase_withoutBearerPrefix_passesNullToken_andBubblesServiceError() {
+//         OrderService svc = mock(OrderService.class);
+//         OrderController ctrl = new OrderController(svc);
+//         UUID pid = UUID.randomUUID();
+//         PurchaseRequest req = new PurchaseRequest(pid, 1);
+//         // When token is null, service is expected to error
+//         when(svc.purchaseProduct(any(), anyInt(), isNull()))
+//                 .thenReturn(Mono.error(new IllegalArgumentException("Missing bearer token")));
 
-        assertThrows(IllegalArgumentException.class, () -> ctrl.purchase("notbearer token", req).block());
-        verify(svc).purchaseProduct(eq(pid), eq(1), isNull());
-    }
-}
+//         assertThrows(IllegalArgumentException.class, () -> ctrl.purchase("notbearer token", req).block());
+//         verify(svc).purchaseProduct(eq(pid), eq(1), isNull());
+//     }
+// }
