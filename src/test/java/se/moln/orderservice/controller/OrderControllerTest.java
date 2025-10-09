@@ -2,7 +2,6 @@
 
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import reactor.core.publisher.Mono;
 import se.moln.orderservice.dto.OrderHistoryDto;
 import se.moln.orderservice.dto.PurchaseRequest;
 import se.moln.orderservice.dto.PurchaseResponse;
@@ -28,9 +27,9 @@ class OrderControllerTest {
         PurchaseRequest req = new PurchaseRequest(List.of(new PurchaseRequest.OrderItemRequest(pid, 3)));
         PurchaseResponse expected = new PurchaseResponse(UUID.randomUUID(), "ORD-ABC12345", new BigDecimal("123.45"));
 
-        when(svc.purchaseProduct(any(PurchaseRequest.class), any())).thenReturn(Mono.just(expected));
+        when(svc.purchaseProduct(any(PurchaseRequest.class), any())).thenReturn(expected);
 
-        var respEntity = ctrl.purchase("Bearer my.jwt.token", req).block();
+        var respEntity = ctrl.purchase("Bearer my.jwt.token", req);
         assertNotNull(respEntity);
         assertEquals(200, respEntity.getStatusCode().value());
         assertEquals(expected, respEntity.getBody());
@@ -54,9 +53,9 @@ class OrderControllerTest {
                 UUID.randomUUID(), "ORD-1", new BigDecimal("10.00"), OrderStatus.CREATED,
                 OffsetDateTime.now(), List.of()
         ));
-        when(svc.getOrderHistory("tkn", 1, 5)).thenReturn(Mono.just(data));
+        when(svc.getOrderHistory("tkn", 1, 5)).thenReturn(data);
 
-        var respEntity = ctrl.history("Bearer tkn", 1, 5).block();
+        var respEntity = ctrl.history("Bearer tkn", 1, 5);
         assertNotNull(respEntity);
         assertEquals(200, respEntity.getStatusCode().value());
         assertEquals(data, respEntity.getBody());
@@ -66,9 +65,9 @@ class OrderControllerTest {
     void history_missingBearerYieldsServiceError() {
         OrderService svc = mock(OrderService.class);
         OrderController ctrl = new OrderController(svc);
-        when(svc.getOrderHistory(null, 0, 10)).thenReturn(Mono.error(new IllegalArgumentException("Missing bearer token")));
+        when(svc.getOrderHistory(null, 0, 10)).thenThrow(new IllegalArgumentException("Missing bearer token"));
 
-        assertThrows(IllegalArgumentException.class, () -> ctrl.history(null, 0, 10).block());
+        assertThrows(IllegalArgumentException.class, () -> ctrl.history(null, 0, 10));
     }
 
     @Test
@@ -79,9 +78,9 @@ class OrderControllerTest {
         PurchaseRequest req = new PurchaseRequest(List.of(new PurchaseRequest.OrderItemRequest(pid, 1)));
         // When token is null, service is expected to error
         when(svc.purchaseProduct(any(PurchaseRequest.class), isNull()))
-                .thenReturn(Mono.error(new IllegalArgumentException("Missing bearer token")));
+                .thenThrow(new IllegalArgumentException("Missing bearer token"));
 
-        assertThrows(IllegalArgumentException.class, () -> ctrl.purchase("notbearer token", req).block());
+        assertThrows(IllegalArgumentException.class, () -> ctrl.purchase("notbearer token", req));
         ArgumentCaptor<PurchaseRequest> reqCap2 = ArgumentCaptor.forClass(PurchaseRequest.class);
         verify(svc).purchaseProduct(reqCap2.capture(), isNull());
         assertEquals(1, reqCap2.getValue().items().size());

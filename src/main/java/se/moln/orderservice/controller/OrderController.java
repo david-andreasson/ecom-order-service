@@ -12,12 +12,11 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Mono;
+
 import se.moln.orderservice.dto.OrderHistoryDto;
 import se.moln.orderservice.dto.PurchaseRequest;
 import se.moln.orderservice.dto.PurchaseResponse;
 import se.moln.orderservice.service.OrderService;
-
 import java.util.List;
 
 @RestController
@@ -63,13 +62,13 @@ public class OrderController {
                             examples = @ExampleObject(name = "BadGateway",
                                     value = "{\n  \"type\": \"about:blank\",\n  \"title\": \"Bad Gateway\",\n  \"status\": 502,\n  \"detail\": \"Product service error | cid=<correlation-id>\"\n}")))
     })
-    public Mono<ResponseEntity<PurchaseResponse>> purchase(
+    public ResponseEntity<PurchaseResponse> purchase(
             @Parameter(description = "Bearer-token i formatet 'Bearer <JWT>'")
             @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String authHeader,
             @RequestBody PurchaseRequest purchaseRequest) {
         String token = authHeader != null && authHeader.startsWith("Bearer ") ? authHeader.substring(7) : null;
-        return orderService.purchaseProduct(purchaseRequest, token)
-                .map(ResponseEntity::ok);
+        PurchaseResponse resp = orderService.purchaseProduct(purchaseRequest, token);
+        return ResponseEntity.ok(resp);
     }
 
     @GetMapping(path = "/history", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -85,13 +84,13 @@ public class OrderController {
                                     value = "[{\n  \"id\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n  \"orderNumber\": \"ORD-ABC12345\",\n  \"totalAmount\": 25998,\n  \"status\": \"CREATED\",\n  \"orderDate\": \"2025-09-12T10:15:30Z\",\n  \"items\": [{\n    \"productId\": \"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3\",\n    \"productName\": \"iPhone 16 Pro\",\n    \"quantity\": 2,\n    \"priceAtPurchase\": 12999\n  }]\n}]"))),
             @ApiResponse(responseCode = "401", description = "Otillåten (saknar eller ogiltig token)", content = @Content)
     })
-    public Mono<ResponseEntity<List<OrderHistoryDto>>> history(
+    public ResponseEntity<List<OrderHistoryDto>> history(
             @Parameter(description = "Bearer-token i formatet 'Bearer <JWT>'")
             @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String authHeader,
             @Parameter(description = "Sida (0-baserad)") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Radsstorlek") @RequestParam(defaultValue = "200") int size) {
         String token = authHeader != null && authHeader.startsWith("Bearer ") ? authHeader.substring(7) : null;
-        return orderService.getOrderHistory(token, page, size)
-                .map(ResponseEntity::ok);
+        List<OrderHistoryDto> history = orderService.getOrderHistory(token, page, size);
+        return ResponseEntity.ok(history);
     }
 }
