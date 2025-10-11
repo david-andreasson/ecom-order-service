@@ -32,16 +32,19 @@ public class OrderService {
     private final String userServiceUrl;
     private final String productUrl;
     private final JwtService jwtService;
+    private final EntitlementClient entitlementClient;
 
     public OrderService(OrderRepository orderRepository,
                         @Value("${userservice.url}") String userServiceUrl,
                         @Value("${productservice.url}") String productUrl,
-                        JwtService jwtService) {
+                        JwtService jwtService,
+                        EntitlementClient entitlementClient) {
         this.restTemplate = new RestTemplate();
         this.orderRepository = orderRepository;
         this.userServiceUrl = userServiceUrl;
         this.productUrl = productUrl;
         this.jwtService = jwtService;
+        this.entitlementClient = entitlementClient;
     }
 
     public PurchaseResponse purchaseProduct(PurchaseRequest request, String jwtToken) {
@@ -56,6 +59,11 @@ public class OrderService {
         order.setStatus(OrderStatus.CREATED);
         order.setOrderDate(OffsetDateTime.now());
         order.setOrderNumber(generateOrderNumber());
+        
+        // Link to payment if provided
+        if (request.paymentId() != null && !request.paymentId().isBlank()) {
+            order.setPaymentId(request.paymentId());
+        }
 
         HttpHeaders headers = new HttpHeaders();
         headers.set(HttpHeaders.AUTHORIZATION, "Bearer " + jwtToken);
@@ -64,7 +72,7 @@ public class OrderService {
 
         List<OrderItem> items = new ArrayList<>();
         for (var itemReq : request.items()) {
-            // Hämta produktinfo
+            // Get product info
             ResponseEntity<ProductResponse> prodResp;
             try {
                 prodResp = restTemplate.exchange(
@@ -83,7 +91,7 @@ public class OrderService {
                 throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_GATEWAY, "Product service returned empty body | cid=" + correlationId);
             }
 
-            // Reservera lagret
+            // Reserve inventory
             try {
                 HttpHeaders postHeaders = new HttpHeaders();
                 postHeaders.set(HttpHeaders.AUTHORIZATION, "Bearer " + jwtToken);
@@ -120,9 +128,22 @@ public class OrderService {
 
         try {
             Order saved = orderRepository.save(order);
+            
+            // Grant entitlements for purchased products
+            for (var itemReq : request.items()) {
+                try {
+                    // For now, hardcoded: HOROSCOPE_PDF gives 1 entitlement
+                    // In production, this mapping should come from product metadata
+                    entitlementClient.grantEntitlement("Bearer " + jwtToken, "HOROSCOPE_PDF", itemReq.quantity());
+                } catch (Exception entErr) {
+                    // Log but don't fail the order - entitlement can be granted manually
+                    System.err.println("Failed to grant entitlement for order " + saved.getId() + ": " + entErr.getMessage());
+                }
+            }
+            
             return new PurchaseResponse(saved.getId(), saved.getOrderNumber(), saved.getTotalAmount());
         } catch (Exception err) {
-            // Rollback: returnera alla reserverade produkter (best-effort)
+            // Rollback: return all reserved products (best-effort)
             for (OrderItem item : items) {
                 try {
                     HttpHeaders postHeaders = new HttpHeaders();

@@ -24,7 +24,7 @@ class OrderControllerTest {
         OrderController ctrl = new OrderController(svc);
 
         UUID pid = UUID.randomUUID();
-        PurchaseRequest req = new PurchaseRequest(List.of(new PurchaseRequest.OrderItemRequest(pid, 3)));
+        PurchaseRequest req = new PurchaseRequest(List.of(new PurchaseRequest.OrderItemRequest(pid, 3)), null);
         PurchaseResponse expected = new PurchaseResponse(UUID.randomUUID(), "ORD-ABC12345", new BigDecimal("123.45"));
 
         when(svc.purchaseProduct(any(PurchaseRequest.class), any())).thenReturn(expected);
@@ -75,12 +75,12 @@ class OrderControllerTest {
         OrderService svc = mock(OrderService.class);
         OrderController ctrl = new OrderController(svc);
         UUID pid = UUID.randomUUID();
-        PurchaseRequest req = new PurchaseRequest(List.of(new PurchaseRequest.OrderItemRequest(pid, 1)));
+        PurchaseRequest req2 = new PurchaseRequest(List.of(new PurchaseRequest.OrderItemRequest(pid, 3)), null);
         // When token is null, service is expected to error
         when(svc.purchaseProduct(any(PurchaseRequest.class), isNull()))
                 .thenThrow(new IllegalArgumentException("Missing bearer token"));
 
-        assertThrows(IllegalArgumentException.class, () -> ctrl.purchase("notbearer token", req));
+        assertThrows(IllegalArgumentException.class, () -> ctrl.purchase("notbearer token", req2));
         ArgumentCaptor<PurchaseRequest> reqCap2 = ArgumentCaptor.forClass(PurchaseRequest.class);
         verify(svc).purchaseProduct(reqCap2.capture(), isNull());
         assertEquals(1, reqCap2.getValue().items().size());

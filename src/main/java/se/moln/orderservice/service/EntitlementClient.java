@@ -73,4 +73,23 @@ public class EntitlementClient {
             throw new RuntimeException("Entitlement consume error", e);
         }
     }
+
+    public void grantEntitlement(String authBearerToken, String sku, int count) {
+        try {
+            URI uri = URI.create(userServiceBase + "/api/users/me/entitlements/grant");
+            String body = toJson(Map.of("sku", sku, "count", count));
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(uri)
+                    .header(HttpHeaders.AUTHORIZATION, authBearerToken)
+                    .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                    .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
+                    .build();
+            HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (resp.statusCode() != 200) {
+                throw new RuntimeException("Grant entitlement failed: " + resp.statusCode() + " - " + resp.body());
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Grant entitlement error", e);
+        }
+    }
 }
