@@ -56,13 +56,15 @@ public class OrderService {
 
         Order order = new Order();
         order.setUserId(userId);
-        order.setStatus(OrderStatus.CREATED);
         order.setOrderDate(OffsetDateTime.now());
         order.setOrderNumber(generateOrderNumber());
         
-        // Link to payment if provided
+        // Link to payment if provided. If payment succeeded, order is completed.
         if (request.paymentId() != null && !request.paymentId().isBlank()) {
             order.setPaymentId(request.paymentId());
+            order.setStatus(OrderStatus.COMPLETED);
+        } else {
+            order.setStatus(OrderStatus.CREATED);
         }
 
         HttpHeaders headers = new HttpHeaders();
