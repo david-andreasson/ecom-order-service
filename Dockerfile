@@ -12,7 +12,7 @@ COPY mvnw mvnw
 RUN chmod +x mvnw
 
 # Förladda dependencies (cacheas mellan builds)
-#TODO kolla om ett bättre alternativ än cachering
+#TODO kolla om ett bättre alternativ än cachning
 RUN --mount=type=cache,target=/root/.m2 ./mvnw -q -B -DskipTests dependency:go-offline || mvn -q -B -DskipTests dependency:go-offline
 
 # Kopiera källkod och bygg
