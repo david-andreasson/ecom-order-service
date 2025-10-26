@@ -11,11 +11,11 @@ COPY mvnw mvnw
 # Ensure wrapper is executable (needed in some environments)
 RUN chmod +x mvnw
 
-# Förladda dependencies (cacheas mellan builds)
-#TODO kolla om ett bättre alternativ än cachning
+# Preload dependencies (cached between builds)
+# TODO: evaluate a better alternative than caching
 RUN --mount=type=cache,target=/root/.m2 ./mvnw -q -B -DskipTests dependency:go-offline || mvn -q -B -DskipTests dependency:go-offline
 
-# Kopiera källkod och bygg
+# Copy sources and build
 COPY src/ src/
 RUN --mount=type=cache,target=/root/.m2 mvn -q -B -Dmaven.test.skip=true clean package
 
@@ -25,18 +25,18 @@ FROM eclipse-temurin:21-jre
 
 WORKDIR /app
 
-# Exponera standardporten för Spring Boot
+# Expose default Spring Boot port
 EXPOSE 8080
 
-# Miljövariabler (kan override:as vid runtime)
+# Environment variables (override at runtime if needed)
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -XX:InitialRAMPercentage=50" \
     SPRING_PROFILES_ACTIVE=default
 
-# Skapa datakatalog och sätt generösa rättigheter (dev)
+# Create data directory and set permissive access (dev)
 RUN mkdir -p /app/data && chmod -R 777 /app
 
-# Kopiera den byggda applikationen från build-steget (antar exakt en jar i target)
+# Copy built application from the build stage (assumes a single jar in target)
 COPY --from=build /workspace/target/*.jar /app/app.jar
 
 # Start
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+ENTRYPOINT ["/opt/java/openjdk/bin/java", "-jar", "/app/app.jar"]
