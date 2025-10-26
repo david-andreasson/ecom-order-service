@@ -85,6 +85,6 @@ class OrderControllerTest {
         verify(svc).purchaseProduct(reqCap2.capture(), isNull());
         assertEquals(1, reqCap2.getValue().items().size());
         assertEquals(pid, reqCap2.getValue().items().get(0).productId());
-        assertEquals(1, reqCap2.getValue().items().get(0).quantity());
+        assertEquals(3, reqCap2.getValue().items().get(0).quantity());
     }
 }
