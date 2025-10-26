@@ -30,7 +30,7 @@ public class OpenApiConfig {
                 .addSecurityItem(new SecurityRequirement().addList("bearerAuth"))
                 .servers(List.of(
                         new Server().url("http://localhost:8082").description("Local"),
-                        new Server().url("https://orderservice.drillbi.se").description("Production")
+                        new Server().url("https://ecom.drillbi.se").description("Production")
                 ));
     }
 }
