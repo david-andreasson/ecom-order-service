@@ -10,14 +10,11 @@ public class CorsConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(@NonNull CorsRegistry registry) {
-        registry.addMapping("/**") // Tillåt alla endpoints
+        registry.addMapping("/**") 
                 .allowedOrigins(
-                        "http://localhost:8080", // frontend via Nginx i docker-compose
-                        "http://localhost:3000",
-                        "https://productservice.drillbi.se",
-                        "https://userservice.drillbi.se",
-                        "https://kebabrolle.drillbi.se",
-                        "https://orderservice.drillbi.se"
+                        "https://ecom.drillbi.se",
+                        "http://localhost:8080"
+
                 )
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
