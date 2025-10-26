@@ -39,7 +39,7 @@ public class HoroscopeService {
     private String openAiApiBase;
 
     @Value("${OPENAI_AUTH_SCHEME:Bearer}")
-    private String openAiAuthScheme; // kept for compatibility with Authorization header
+    private String openAiAuthScheme; // Scheme used in Authorization header (e.g., Bearer, Api-Key)
 
     // Allow custom header name and optional prefix for providers that don't use Authorization
     @Value("${OPENAI_AUTH_HEADER:Authorization}")
