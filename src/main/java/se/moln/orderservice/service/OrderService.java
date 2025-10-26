@@ -135,7 +135,7 @@ public class OrderService {
             for (var itemReq : request.items()) {
                 try {
                     // For now, hardcoded: HOROSCOPE_PDF gives 1 entitlement
-                    // In production, this mapping should come from product metadata
+                    // TODO: Replace hardcoded SKU with mapping from product metadata. See tracking issue: https://github.com/your-org/your-repo/issues/123
                     entitlementClient.grantEntitlement("Bearer " + jwtToken, "HOROSCOPE_PDF", itemReq.quantity());
                 } catch (Exception entErr) {
                     // Log but don't fail the order - entitlement can be granted manually
