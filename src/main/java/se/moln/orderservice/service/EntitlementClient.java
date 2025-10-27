@@ -16,24 +16,16 @@ import java.util.Map;
 public class EntitlementClient {
     private final String userServiceBase;
     private final HttpClient http = HttpClient.newHttpClient();
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     public EntitlementClient(@Value("${USERSERVICE_URL:http://user-service:8083}") String base) {
         this.userServiceBase = base;
-    }
-
-    private Map<String, Object> parseJson(String json) {
-        try {
-            com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper();
-            return om.readValue(json, Map.class);
-        } catch (Throwable e) {
-            throw new RuntimeException("Failed to parse JSON", e);
-        }
+        this.objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
     }
 
     private String toJson(Map<String, Object> map) {
         try {
-            com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper();
-            return om.writeValueAsString(map);
+            return objectMapper.writeValueAsString(map);
         } catch (Throwable ignore) {
             return map.toString();
         }

@@ -41,7 +41,7 @@ class OrderServiceTest {
 
     @BeforeEach
     void setUp() {
-        orderService = new OrderService(orderRepository, "http://users", "http://products", jwtService, entitlementClient);
+        orderService = new OrderService(orderRepository, "http://products", jwtService, entitlementClient);
     }
 
     @Test

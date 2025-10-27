@@ -20,6 +20,7 @@ class JwtServiceTest {
         SecretKey key = Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8));
         var builder = Jwts.builder()
                 .setSubject(subject)
+                .setIssuer("user-service")
                 .setExpiration(exp);
         if (uid != null) {
             builder.claim("uid", uid.toString());

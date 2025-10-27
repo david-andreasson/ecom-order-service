@@ -13,9 +13,6 @@ import se.moln.orderservice.payment.dto.PaymentCreateRequest;
 import se.moln.orderservice.payment.dto.PaymentStatus;
 import se.moln.orderservice.payment.dto.ProviderCreateResult;
 
-import java.util.HashMap;
-import java.util.Map;
-
 @Component
 public class StripePaymentProvider implements PaymentProvider {
 
@@ -53,7 +50,6 @@ public class StripePaymentProvider implements PaymentProvider {
                             PaymentIntentCreateParams.AutomaticPaymentMethods.builder().setEnabled(true).build()
                     );
             if (req.getEmail() != null && !req.getEmail().isBlank()) {
-                Map<String, Object> receiptEmail = new HashMap<>();
                 // Stripe supports receipt_email directly on PaymentIntent
                 builder.setReceiptEmail(req.getEmail());
             }
