@@ -6,6 +6,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -29,19 +30,16 @@ public class OrderService {
 
     private final RestTemplate restTemplate;
     private final OrderRepository orderRepository;
-    private final String userServiceUrl;
     private final String productUrl;
     private final JwtService jwtService;
     private final EntitlementClient entitlementClient;
 
     public OrderService(OrderRepository orderRepository,
-                        @Value("${userservice.url}") String userServiceUrl,
                         @Value("${productservice.url}") String productUrl,
                         JwtService jwtService,
                         EntitlementClient entitlementClient) {
         this.restTemplate = new RestTemplate();
         this.orderRepository = orderRepository;
-        this.userServiceUrl = userServiceUrl;
         this.productUrl = productUrl;
         this.jwtService = jwtService;
         this.entitlementClient = entitlementClient;
@@ -134,8 +132,7 @@ public class OrderService {
             // Grant entitlements for purchased products
             for (var itemReq : request.items()) {
                 try {
-                    // For now, hardcoded: HOROSCOPE_PDF gives 1 entitlement
-                    // TODO: Replace hardcoded SKU with mapping from product metadata. See tracking issue: https://github.com/your-org/your-repo/issues/123
+                    // For now, hardcoded: HOROSCOPE_PDF gives 1 entitlement (tracked in https://github.com/your-org/your-repo/issues/123)
                     entitlementClient.grantEntitlement("Bearer " + jwtToken, "HOROSCOPE_PDF", itemReq.quantity());
                 } catch (Exception entErr) {
                     // Log but don't fail the order - entitlement can be granted manually
@@ -193,8 +190,12 @@ public class OrderService {
     }
 
     private ResponseStatusException toUpstreamException(String message, RestClientResponseException ex, String cid) {
-        var status = org.springframework.http.HttpStatus.resolve(ex.getRawStatusCode());
-        if (status == null) status = org.springframework.http.HttpStatus.BAD_GATEWAY;
+        HttpStatus status = ex.getStatusCode() instanceof HttpStatus hs
+                ? hs
+                : HttpStatus.resolve(ex.getStatusCode().value());
+        if (status == null) {
+            status = HttpStatus.BAD_GATEWAY;
+        }
         return new ResponseStatusException(status, message + " | " + ex.getResponseBodyAsString() + " | cid=" + cid);
     }
 }

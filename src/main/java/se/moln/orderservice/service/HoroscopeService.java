@@ -6,6 +6,8 @@ import com.lowagie.text.Font;
 import com.lowagie.text.FontFactory;
 import com.lowagie.text.Paragraph;
 import com.lowagie.text.pdf.PdfWriter;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -52,6 +54,7 @@ public class HoroscopeService {
     private String storageDir;
 
     private final HttpClient httpClient = HttpClient.newHttpClient();
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public String generateHoroscopePdf(HoroscopeRequest req) {
         ensureApiKey();
@@ -171,14 +174,17 @@ public class HoroscopeService {
                 // Expect aiRecord.aiRecordDetail.resultObject containing the text
                 Object aiRecord = response.get("aiRecord");
                 if (aiRecord instanceof Map<?, ?> ar) {
-                    Object detail = ((Map<?, ?>) ar).get("aiRecordDetail");
+                    Object detail = ar.get("aiRecordDetail");
                     if (detail instanceof Map<?, ?> d) {
                         Object resultObject = d.get("resultObject");
                         if (resultObject instanceof String s && StringUtils.hasText(s)) return s.trim();
                         if (resultObject instanceof List<?> list && !list.isEmpty()) {
                             Object first = list.get(0);
                             if (first instanceof String s && StringUtils.hasText(s)) return s.trim();
-                            if (first instanceof Map<?, ?> m && m.get("text") instanceof String s2 && StringUtils.hasText(s2)) return s2.trim();
+                            if (first instanceof Map<?, ?> m) {
+                                Object text = m.get("text");
+                                if (text instanceof String s2 && StringUtils.hasText(s2)) return s2.trim();
+                            }
                         }
                     }
                 }
@@ -189,22 +195,30 @@ public class HoroscopeService {
                 throw new RuntimeException("Unexpected 1minAI response: " + resp.body());
             }
             // Standard Chat Completions: choices[0].message.content (string)
-            try {
-                List<Map<String, Object>> choices = (List<Map<String, Object>>) response.get("choices");
-                Map<String, Object> first = choices != null && !choices.isEmpty() ? choices.get(0) : null;
-                Map<String, Object> message = first != null ? (Map<String, Object>) first.get("message") : null;
-                Object contentObj = message != null ? message.get("content") : null;
-                String content = contentObj instanceof String ? (String) contentObj : null;
-                if (StringUtils.hasText(content)) return content.trim();
-            } catch (Exception ignore) { }
+            Object choicesObj = response.get("choices");
+            if (choicesObj instanceof List<?> choices && !choices.isEmpty()) {
+                Object firstObj = choices.get(0);
+                if (firstObj instanceof Map<?, ?> first) {
+                    Object messageObj = first.get("message");
+                    if (messageObj instanceof Map<?, ?> message) {
+                        Object contentObj = message.get("content");
+                        if (contentObj instanceof String s && StringUtils.hasText(s)) {
+                            return s.trim();
+                        }
+                    }
+                }
+            }
 
             // Fallback: sometimes providers return 'choices[0].text'
-            try {
-                List<Map<String, Object>> choices = (List<Map<String, Object>>) response.get("choices");
-                Map<String, Object> first = choices != null && !choices.isEmpty() ? choices.get(0) : null;
-                Object text = first != null ? first.get("text") : null;
-                if (text instanceof String s && StringUtils.hasText(s)) return s.trim();
-            } catch (Exception ignore) { }
+            if (choicesObj instanceof List<?> choices2 && !choices2.isEmpty()) {
+                Object firstObj = choices2.get(0);
+                if (firstObj instanceof Map<?, ?> first) {
+                    Object text = first.get("text");
+                    if (text instanceof String s && StringUtils.hasText(s)) {
+                        return s.trim();
+                    }
+                }
+            }
 
             // Another fallback: Responses API style 'output_text'
             Object out = response.get("output_text");
@@ -212,8 +226,11 @@ public class HoroscopeService {
 
             // If API returned an error object but with 200 status
             Object err = response.get("error");
-            if (err instanceof Map<?, ?> em && ((Map<?, ?>) err).get("message") instanceof String m && StringUtils.hasText(m)) {
-                throw new RuntimeException("OpenAI logical error: " + m);
+            if (err instanceof Map<?, ?> errorMap) {
+                Object messageObj = errorMap.get("message");
+                if (messageObj instanceof String m && StringUtils.hasText(m)) {
+                    throw new RuntimeException("OpenAI logical error: " + m);
+                }
             }
 
             throw new RuntimeException("Unexpected OpenAI response: " + resp.body());
@@ -228,20 +245,15 @@ public class HoroscopeService {
     // Minimal JSON helpers using simple String building and Jackson if available via Spring (fallback naive)
     private String toJson(Map<String, Object> map) {
         try {
-            // Prefer Jackson if on classpath
-            com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper();
-            return om.writeValueAsString(map);
+            return objectMapper.writeValueAsString(map);
         } catch (Throwable ignore) {
-            // Naive fallback
             return map.toString();
         }
     }
 
-    @SuppressWarnings("unchecked")
     private Map<String, Object> parseJson(String json) {
         try {
-            com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper();
-            return om.readValue(json, Map.class);
+            return objectMapper.readValue(json, new TypeReference<>() {});
         } catch (Throwable e) {
             throw new RuntimeException("Failed to parse JSON", e);
         }
